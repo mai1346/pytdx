@@ -172,3 +172,7 @@ ENV/
 /research
 
 *.c
+
+# pixi environments
+.pixi
+*.egg-info

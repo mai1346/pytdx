@@ -17,7 +17,7 @@ from pytdx.parser.setup_commands import (
 from pytdx.log import DEBUG, log
 import struct
 import zlib
-from pytdx.async.pool import ConnectionPool
+from pytdx.tdx_async.pool import ConnectionPool
 import timeit
 import asyncio
 

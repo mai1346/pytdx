@@ -1,7 +1,7 @@
 # coding: utf-8
+from pytdx.tdx_async.pool import ConnectionPool
+from pytdx.tdx_async.reflection import make_async_parser
 
-from pytdx.async.pool import ConnectionPool
-from pytdx.async.reflection import make_async_parser
 import timeit
 import random
 import pandas as pd
