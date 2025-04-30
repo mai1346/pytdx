@@ -1,0 +1,17 @@
+[workspace]
+channels = ["conda-forge"]
+name = "pytdx"
+platforms = ["osx-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.12.*"
+pandas = ">=2.2.3,<3"
+gitpython = ">=3.1.44,<4"
+pypandoc = ">=1.15,<2"
+cryptography = ">=44.0.2,<45"
+pytest = ">=8.3.5,<9"
+click = ">=8.1.8,<9"
+ipython = ">=9.2.0,<10"

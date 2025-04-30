@@ -42,7 +42,7 @@ except Exception as e:
     print(30 * "*")
 
 
-pkg_name = 'pytdx'
+pkg_name = 'pytdx-async'
 
 if cur_branch != 'master':
     pkg_name = 'pytdx-' + cur_branch
