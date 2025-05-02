@@ -19,44 +19,44 @@ if PYTDX_CYTHON:
     }
 else:
     cythonkw = {}
-try:
-    import pypandoc
-    long_description = pypandoc.convert('README.md', 'rst')
-except (IOError, ImportError):
-    print(30 * "*")
-    print("Notice, NEED TO INSTALL *pypandoc* TO get full description of package")
-    print(30 * "*")
-    long_description = ''
+# try:
+#     import pypandoc
+#     long_description = pypandoc.convert('README.md', 'rst')
+# except (IOError, ImportError):
+#     print(30 * "*")
+#     print("Notice, NEED TO INSTALL *pypandoc* TO get full description of package")
+#     print(30 * "*")
+#     long_description = ''
 
-# try get current branch
-cur_branch = 'master'
-try:
-    from git import Repo
-    cur_path = os.path.abspath(os.path.dirname(__file__))
-    repo = Repo(cur_path)
-    cur_branch = repo.active_branch.name
+# # try get current branch
+# cur_branch = 'master'
+# try:
+#     from git import Repo
+#     cur_path = os.path.abspath(os.path.dirname(__file__))
+#     repo = Repo(cur_path)
+#     cur_branch = repo.active_branch.name
 
-except Exception as e:
-    print(30 * "*")
-    print("Notice, NEED TO INSTALL *GitPython* TO setup package with branch name")
-    print(30 * "*")
+# except Exception as e:
+#     print(30 * "*")
+#     print("Notice, NEED TO INSTALL *GitPython* TO setup package with branch name")
+#     print(30 * "*")
 
 
 pkg_name = 'pytdx-async'
 
-if cur_branch != 'master':
-    pkg_name = 'pytdx-' + cur_branch
+# if cur_branch != 'master':
+#     pkg_name = 'pytdx-' + cur_branch
 
-print(30 * '-')
-print("Current Branch is {}, so package name is {}".format(cur_branch, pkg_name))
-print(30 * '-')
+# print(30 * '-')
+# print("Current Branch is {}, so package name is {}".format(cur_branch, pkg_name))
+# print(30 * '-')
 
 setup(
     name=pkg_name,
     version='1.72',
     description='A Python Interface to TDX protocol',
-    long_description=long_description,
-    author=['RainX<Jing Xu>', 'yutiansut'],
+    long_description='Asynchronous Python Interface to TDX protocol',
+    author=['RainX<Jing Xu>', 'yutiansut','mai1346'],
     author_email='i@rainx.cc',
     url='https://github.com/rainx/pytdx',
     packages=find_packages(),

@@ -50,7 +50,6 @@ def make_async_parser(parser_cls: Type[T], connection: Any) -> T:
 
         async def _call_api(self) -> Any:
             """纯异步实现的核心方法"""
-            print(self)
             if not self.send_pkg:
                 raise SendPkgNotReadyError("send pkg not ready")
 

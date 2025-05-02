@@ -62,7 +62,6 @@ def exec_command(func):
                                             "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 cc e1 6d ff"
                                             "d5 ba 3f b8 cb c5 7a 05 4f 77 48 ea"
                 ), connection)
-            print(connection.connected)
             data = await func(self, *args, **kwargs, connection=connection)
             return data
         finally:

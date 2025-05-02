@@ -55,7 +55,6 @@ def exec_command(func):
     @wraps(func)
     async def wrapper(self: 'ATdxHq_API', *args, **kwargs) -> Any:
         connection = await self.pool.get_connection()
-        print(connection.connected)
         try:
             if not connection.connected:
                 await receive_all(bytearray.fromhex('0c 02 18 93 00 01 03 00 03 00 0d 00 01'), connection)
@@ -80,6 +79,14 @@ class ATdxHq_API:
         self.pool = ConnectionPool(ip=ip, port=port)
         self.auto_retry = auto_retry
         self.raise_exception = raise_exception
+    
+    def to_df(self, v):
+        if isinstance(v, list):
+            return pd.DataFrame(data=v)
+        elif isinstance(v, dict):
+            return pd.DataFrame(data=[v, ])
+        else:
+            return pd.DataFrame(data=[{'value': v}])
 
     @update_last_ack_time
     @exec_command
@@ -255,9 +262,9 @@ if __name__ == '__main__':
         api = ATdxHq_API(ip='sztdx.gtjas.com')
         try:
             # 其他测试代码
-            # res = [api.get_history_transaction_data(0, x, 0, 800, 20230911) for x in ['000001', '000002', '000021', '000028', '000050']]
-            ress = await api.get_history_transaction_data(0, '000001', 0, 800, 20230911)
-            # ress = await api.run_until_complete(res)
+            res = [api.get_history_transaction_data(0, x, 0, 800, 20230911) for x in ['000001', '000002', '000021', '000028', '000050']]
+            # ress = await api.get_history_transaction_data(0, '000001', 0, 800, 20230911)
+            ress = await api.run_until_complete(res)
             return ress
         finally:
             await api.close()
