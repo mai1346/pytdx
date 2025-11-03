@@ -6,11 +6,15 @@ import struct
 from typing import Optional, List, Tuple, Union, Any
 import asyncio
 import random
+import time
 import pandas as pd
 
 from pytdx.async_api.pool import ConnectionPool
 from pytdx.async_api.reflection_async import make_async_parser
 from pytdx.base_socket_client import update_last_ack_time
+
+from pytdx.log import DEBUG, log
+from pytdx.errors import TdxConnectionError, TdxFunctionCallError
 
 from pytdx.parser.get_block_info import (GetBlockInfo, GetBlockInfoMeta,
                                          get_and_parse_block_info)
@@ -73,10 +77,60 @@ def exec_command(func):
 
     return wrapper
 
+
+def async_update_last_ack_time(func):
+    @wraps(func)
+    async def wrapper(self, *args, **kw):
+        # 1. 更新最后 ACK 时间
+        self.last_ack_time = time.time()
+        log.debug("last ack time update to %s", self.last_ack_time)
+
+        current_exception = None
+        ret = None
+
+        try:
+            # 2. 执行原始异步函数
+            ret = await func(self, *args, **kw)
+
+        except Exception as e:
+            current_exception = e
+            log.debug("hit exception on req: %s", e)
+
+            # 3. 自动重试逻辑（异步版）
+            if self.auto_retry:
+                for time_interval in self.retry_strategy.gen():
+                    try:
+                        await asyncio.sleep(time_interval)  # ← 异步 sleep
+                        await self.disconnect()             # ← 必须是 async
+                        await self.connect(self.ip, self.port)  # ← 必须是 async
+                        ret = await func(self, *args, **kw)  # ← 再次 await
+                        if ret is not None:  # 假设 ret 非 None 表示成功
+                            return ret
+                    except Exception as retry_e:
+                        current_exception = retry_e
+                        log.debug("hit exception on *retry* req: %s", retry_e)
+
+                log.debug("perform auto retry on req (all failed)")
+
+            # 4. 标记失败
+            self.last_transaction_failed = True
+            ret = None
+
+            # 5. 是否抛出自定义异常
+            if self.raise_exception:
+                to_raise = TdxFunctionCallError("calling function error")
+                to_raise.original_exception = current_exception
+                raise to_raise
+
+        return ret  # 成功或未抛异常时返回
+
+    return wrapper
+
+
 class ATdxHq_API:
     def __init__(self, ip: str = '101.227.73.20', port: int = 7709, 
-                 auto_retry: bool = False, raise_exception: bool = True):
-        self.pool = ConnectionPool(ip=ip, port=port)
+                 auto_retry: bool = False, raise_exception: bool = False, max_connections: int = 6):
+        self.pool = ConnectionPool(ip=ip, port=port, max_connections=max_connections)
         self.auto_retry = auto_retry
         self.raise_exception = raise_exception
     
@@ -88,7 +142,7 @@ class ATdxHq_API:
         else:
             return pd.DataFrame(data=[{'value': v}])
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_security_bars(self, category: int, market: int, code: str, 
                               start: int, count: int, connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -96,7 +150,7 @@ class ATdxHq_API:
         cmd.setParams(category, market, code, start, count)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_index_bars(self, category: int, market: int, code: str, 
                            start: int, count: int, connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -104,7 +158,7 @@ class ATdxHq_API:
         cmd.setParams(category, market, code, start, count)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_security_quotes(self, all_stock: Union[Tuple[int, str], List[Tuple[int, str]]], 
                                code: Optional[str] = None, connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -117,14 +171,14 @@ class ATdxHq_API:
         cmd.setParams(all_stock)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_security_count(self, market: int, connection: Optional['AsyncTrafficStatSocket'] = None) -> int:
         cmd = make_async_parser(GetSecurityCountCmd, connection)
         cmd.setParams(market)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_security_list(self, market: int, start: int, 
                               connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -132,7 +186,7 @@ class ATdxHq_API:
         cmd.setParams(market, start)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_minute_time_data(self, market: int, code: str, 
                                  connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -140,7 +194,7 @@ class ATdxHq_API:
         cmd.setParams(market, code)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_history_minute_time_data(self, market: int, code: str, date: int, 
                                          connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -148,7 +202,7 @@ class ATdxHq_API:
         cmd.setParams(market, code, date)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_transaction_data(self, market: int, code: str, start: int, count: int, 
                                  connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -156,15 +210,15 @@ class ATdxHq_API:
         cmd.setParams(market, code, start, count)
         return await cmd.call_api()
 
-    @update_last_ack_time
     @exec_command
+    @async_update_last_ack_time
     async def get_history_transaction_data(self, market: int, code: str, start: int, 
                                          count: int, date: int, connection: Optional['AsyncTrafficStatSocket'] = None) :
         cmd = make_async_parser(GetHistoryTransactionData, connection)
         cmd.setParams(market, code, start, count, date)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_company_info_category(self, market: int, code: str, 
                                       connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -172,7 +226,7 @@ class ATdxHq_API:
         cmd.setParams(market, code)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_company_info_content(self, market: int, code: str, filename: str, 
                                      start: int, length: int, connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -180,7 +234,7 @@ class ATdxHq_API:
         cmd.setParams(market, code, filename, start, length)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_xdxr_info(self, market: int, code: str, 
                           connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -188,7 +242,7 @@ class ATdxHq_API:
         cmd.setParams(market, code)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_finance_info(self, market: int, code: str, 
                              connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -196,7 +250,7 @@ class ATdxHq_API:
         cmd.setParams(market, code)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_block_info_meta(self, blockfile: str, 
                                 connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -204,7 +258,7 @@ class ATdxHq_API:
         cmd.setParams(blockfile)
         return await cmd.call_api()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_block_info(self, blockfile: str, start: int, size: int, 
                            connection: Optional['AsyncTrafficStatSocket'] = None) :
@@ -215,7 +269,7 @@ class ATdxHq_API:
     def get_and_parse_block_info(self, blockfile: str) :
         return get_and_parse_block_info(self, blockfile)
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def do_heartbeat(self) -> int:
         return await self.get_security_count(random.randint(0, 1))
@@ -228,7 +282,7 @@ class ATdxHq_API:
         """Close the API and its connection pool."""
         await self.pool.close()
 
-    @update_last_ack_time
+    @async_update_last_ack_time
     @exec_command
     async def get_k_data(self, code: str, start_date: str, end_date: str, 
                        connection: Optional['AsyncTrafficStatSocket'] = None) -> pd.DataFrame:
@@ -256,7 +310,6 @@ class ATdxHq_API:
 
 
 if __name__ == '__main__':
-    import time
     t1 = time.time()
     async def main():
         api = ATdxHq_API(ip='sztdx.gtjas.com')
