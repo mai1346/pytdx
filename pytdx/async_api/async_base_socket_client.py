@@ -34,7 +34,7 @@ class AsyncTrafficStatSocket:
     """
 
     def __init__(self, ip: str, port: int, pool: Optional[object] = None,
-                 recv_timeout: float = 10.0):
+                 recv_timeout: float = 5.0):
         self.send_pkg_num: int = 0  # 发送次数
         self.recv_pkg_num: int = 0  # 接收次数
         self.send_pkg_bytes: int = 0  # 发送字节
@@ -52,7 +52,9 @@ class AsyncTrafficStatSocket:
         self.recv_timeout: float = recv_timeout
 
     async def connect(self) -> 'AsyncTrafficStatSocket':
-        self.reader, self.writer = await asyncio.open_connection(self.ip, self.port)
+        self.reader, self.writer = await asyncio.wait_for(
+            asyncio.open_connection(self.ip, self.port), timeout=10.0
+        )
         self.connected = True
         return self
 

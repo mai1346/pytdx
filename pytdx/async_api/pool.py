@@ -29,8 +29,13 @@ class ConnectionPool:
                 self._in_use.add(conn)
                 return conn
             else:
-                await conn.disconnect()
-                self.created_connect -= 1
+                try:
+                    await conn.connect()
+                    self._in_use.add(conn)
+                    return conn
+                except Exception:
+                    await conn.disconnect()
+                    self.created_connect -= 1
 
     def make_connection(self) -> AsyncTrafficStatSocket:
         self.created_connect += 1
@@ -43,6 +48,8 @@ class ConnectionPool:
                 self._available.put_nowait(connection)
             else:
                 self.created_connect -= 1
+                if self.created_connect < self.max_connections:
+                    self._available.put_nowait(self.make_connection())
 
     async def discard(self, connection: AsyncTrafficStatSocket) -> None:
         if connection in self._in_use:
@@ -52,6 +59,8 @@ class ConnectionPool:
             except Exception:
                 pass
             self.created_connect -= 1
+            if self.created_connect < self.max_connections:
+                self._available.put_nowait(self.make_connection())
 
     async def disconnect(self) -> None:
         all_conns = list(self._in_use)

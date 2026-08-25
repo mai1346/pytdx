@@ -44,9 +44,14 @@ def make_async_parser(parser_cls: Type[T], connection: Any) -> T:
 
             body_buf = await self._recv_exactly(zipsize)
 
+            try:
+                self._connection.pool.release(self._connection)
+            except Exception:
+                pass
+
             if zipsize != unzipsize:
                 log.debug("Decompressing data...")
-                body_buf = await asyncio.to_thread(zlib.decompress, body_buf)
+                body_buf = zlib.decompress(body_buf)
 
             if DEBUG:
                 log.debug("recv body: %s", body_buf[:100])
