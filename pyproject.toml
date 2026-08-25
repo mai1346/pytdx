@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pytdx-async"
+name = "pytdx"
 version = "1.73"
 description = "A Python Interface to TDX protocol"
 requires-python = ">=3.8"
