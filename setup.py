@@ -53,7 +53,7 @@ pkg_name = 'pytdx-async'
 
 setup(
     name=pkg_name,
-    version='1.72',
+    version='1.73',
     description='A Python Interface to TDX protocol',
     long_description='Asynchronous Python Interface to TDX protocol',
     author=['RainX<Jing Xu>', 'yutiansut','mai1346'],

@@ -117,9 +117,9 @@ def ping(ip, port=7709, type_='stock'):
     except Exception as e:
         if isinstance(e, TypeError):
             print(e)
-            print('Tushare内置的pytdx版本和最新的pytdx 版本不同, 请重新安装pytdx以解决此问题')
-            print('pip uninstall pytdx')
-            print('pip install pytdx')
+            print('Tushare内置的pytdx_async版本和最新的pytdx_async 版本不同, 请重新安装pytdx_async以解决此问题')
+            print('pip uninstall pytdx_async')
+            print('pip install pytdx_async')
 
         else:
             print('BAD RESPONSE {}'.format(ip))

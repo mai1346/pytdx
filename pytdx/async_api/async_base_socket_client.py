@@ -2,7 +2,26 @@
 
 import datetime
 import asyncio
+import struct
 from typing import Optional
+
+
+async def receive_all(send_pkg: bytes, connection: 'AsyncTrafficStatSocket') -> bytes:
+    await connection.send(send_pkg)
+    head_buf = await connection.recv(0x10)
+    if len(head_buf) != 0x10:
+        raise ValueError("Failed to receive complete header")
+    _, _, _, zipsize, _ = struct.unpack("<IIIHH", head_buf)
+    body_buf = bytearray()
+    remaining = zipsize
+    while remaining > 0:
+        buf = await connection.recv(remaining)
+        if not buf:
+            break
+        body_buf.extend(buf)
+        remaining -= len(buf)
+    return bytes(body_buf)
+
 
 class AsyncTrafficStatSocket:
     """
