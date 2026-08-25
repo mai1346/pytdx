@@ -1,7 +1,6 @@
 '''tdx异步api接口'''
 # coding: utf-8
 
-from functools import wraps
 from typing import Optional, List, Tuple, Union, Any
 import asyncio
 import random
@@ -10,13 +9,11 @@ import pandas as pd
 
 from pytdx.async_api.pool import ConnectionPool
 from pytdx.async_api.reflection_async import make_async_parser
-from pytdx.async_api.async_base_socket_client import AsyncTrafficStatSocket, receive_all
+from pytdx.async_api.async_base_socket_client import (
+    AsyncTrafficStatSocket, make_exec_command, async_update_last_ack_time,
+)
 
-from pytdx.log import DEBUG, log
-from pytdx.errors import TdxFunctionCallError
-
-from pytdx.parser.get_block_info import (GetBlockInfo, GetBlockInfoMeta,
-                                         get_and_parse_block_info)
+from pytdx.parser.get_block_info import GetBlockInfo, GetBlockInfoMeta
 from pytdx.parser.get_company_info_category import GetCompanyInfoCategory
 from pytdx.parser.get_company_info_content import GetCompanyInfoContent
 from pytdx.parser.get_finance_info import GetFinanceInfo
@@ -30,62 +27,24 @@ from pytdx.parser.get_security_list import GetSecurityList
 from pytdx.parser.get_security_quotes import GetSecurityQuotesCmd
 from pytdx.parser.get_transaction_data import GetTransactionData
 from pytdx.parser.get_xdxr_info import GetXdXrInfo
-from pytdx.parser.get_report_file import GetReportFile
-from pytdx.parser.setup_commands import SetupCmd1, SetupCmd2, SetupCmd3
 
 
-def exec_command(func):
-    @wraps(func)
-    async def wrapper(self: 'ATdxHq_API', *args, **kwargs) -> Any:
-        connection = await self.pool.get_connection()
-        try:
-            if not connection.connected:
-                await receive_all(bytearray.fromhex('0c 02 18 93 00 01 03 00 03 00 0d 00 01'), connection)
-                await receive_all(bytearray.fromhex('0c 02 18 94 00 01 03 00 03 00 0d 00 02'), connection)
-                await receive_all(bytearray.fromhex(
-                    '0c 03 18 99 00 01 20 00 20 00 db 0f d5'
-                    'd0 c9 cc d6 a4 a8 af 00 00 00 8f c2 25'
-                    '40 13 00 00 d5 00 c9 cc bd f0 d7 ea 00'
-                    '00 00 02'
-                ), connection)
-
-            data = await func(self, *args, **kwargs, connection=connection)
-            return data
-        except Exception:
-            await self.pool.discard(connection)
-            raise
-        finally:
-            self.pool.release(connection)
-
-    return wrapper
-
-
-def async_update_last_ack_time(func):
-    @wraps(func)
-    async def wrapper(self, *args, **kw):
-        self.last_ack_time = time.time()
-        log.debug("last ack time update to %s", self.last_ack_time)
-        try:
-            return await func(self, *args, **kw)
-        except Exception as e:
-            log.debug("hit exception on req: %s", e)
-            if self.raise_exception:
-                to_raise = TdxFunctionCallError("calling function error")
-                to_raise.original_exception = e
-                raise to_raise
-            return None
-
-    return wrapper
+exec_command = make_exec_command([
+    '0c 02 18 93 00 01 03 00 03 00 0d 00 01',
+    '0c 02 18 94 00 01 03 00 03 00 0d 00 02',
+    '0c 03 18 99 00 01 20 00 20 00 db 0f d5'
+    'd0 c9 cc d6 a4 a8 af 00 00 00 8f c2 25'
+    '40 13 00 00 d5 00 c9 cc bd f0 d7 ea 00'
+    '00 00 02',
+])
 
 
 class ATdxHq_API:
     def __init__(self, ip: str = '101.227.73.20', port: int = 7709, 
-                 auto_retry: bool = False, raise_exception: bool = False, max_connections: int = 6):
+                 raise_exception: bool = False, max_connections: int = 6):
         self.pool = ConnectionPool(ip=ip, port=port, max_connections=max_connections)
-        self.auto_retry = auto_retry
         self.raise_exception = raise_exception
         self.last_ack_time = time.time()
-        self.last_transaction_failed = False
 
     def to_df(self, v):
         if isinstance(v, list):
@@ -219,11 +178,22 @@ class ATdxHq_API:
         cmd.setParams(blockfile, start, size)
         return await cmd.call_api()
 
-    def get_and_parse_block_info(self, blockfile: str):
-        return get_and_parse_block_info(self, blockfile)
+    async def get_and_parse_block_info(self, blockfile: str):
+        from pytdx.reader.block_reader import BlockReader, BlockReader_TYPE_FLAT
+        meta = await self.get_block_info_meta(blockfile)
+        if not meta:
+            return None
+        size = meta['size']
+        one_chunk = 0x7530
+        chunks = size // one_chunk + (1 if size % one_chunk != 0 else 0)
+        file_content = bytearray()
+        for seg in range(chunks):
+            start = seg * one_chunk
+            piece_data = await self.get_block_info(blockfile, start, size)
+            file_content.extend(piece_data)
+        return BlockReader().get_data(file_content, BlockReader_TYPE_FLAT)
 
     @async_update_last_ack_time
-    @exec_command
     async def do_heartbeat(self) -> int:
         return await self.get_security_count(random.randint(0, 1))
 

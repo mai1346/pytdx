@@ -3,7 +3,12 @@
 import datetime
 import asyncio
 import struct
-from typing import Optional
+import time
+from functools import wraps
+from typing import Optional, List, Any
+
+from pytdx.log import log
+from pytdx.errors import TdxFunctionCallError
 
 
 async def receive_all(send_pkg: bytes, connection: 'AsyncTrafficStatSocket') -> bytes:
@@ -53,6 +58,8 @@ class AsyncTrafficStatSocket:
         if self.writer:
             self.writer.close()
             await self.writer.wait_closed()
+        self.reader = None
+        self.writer = None
         self.connected = False
 
     async def send(self, data: bytes, flags: Optional[int] = None) -> int:
@@ -80,3 +87,40 @@ class AsyncTrafficStatSocket:
 
     def set_last_api_received(self, num: int) -> None:
         self.last_api_recv_bytes = num
+
+
+def make_exec_command(setup_hex_list: List[str]):
+    def exec_command(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs) -> Any:
+            connection = await self.pool.get_connection()
+            try:
+                if not connection.connected:
+                    for setup_hex in setup_hex_list:
+                        await receive_all(bytearray.fromhex(setup_hex), connection)
+                data = await func(self, *args, **kwargs, connection=connection)
+                return data
+            except Exception:
+                await self.pool.discard(connection)
+                raise
+            finally:
+                self.pool.release(connection)
+        return wrapper
+    return exec_command
+
+
+def async_update_last_ack_time(func):
+    @wraps(func)
+    async def wrapper(self, *args, **kw):
+        self.last_ack_time = time.time()
+        log.debug("last ack time update to %s", self.last_ack_time)
+        try:
+            return await func(self, *args, **kw)
+        except Exception as e:
+            log.debug("hit exception on req: %s", e)
+            if self.raise_exception:
+                to_raise = TdxFunctionCallError("calling function error")
+                to_raise.original_exception = e
+                raise to_raise
+            return None
+    return wrapper

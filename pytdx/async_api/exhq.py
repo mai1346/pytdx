@@ -1,6 +1,5 @@
 # coding=utf-8
 
-from functools import wraps
 from typing import Optional, List, Any
 import asyncio
 import time
@@ -8,10 +7,10 @@ import pandas as pd
 
 from pytdx.async_api.pool import ConnectionPool
 from pytdx.async_api.reflection_async import make_async_parser
-from pytdx.async_api.async_base_socket_client import AsyncTrafficStatSocket, receive_all
-from pytdx.async_api.hq import async_update_last_ack_time
+from pytdx.async_api.async_base_socket_client import (
+    AsyncTrafficStatSocket, make_exec_command, async_update_last_ack_time,
+)
 
-from pytdx.parser.ex_setup_commands import ExSetupCmd1
 from pytdx.parser.ex_get_markets import GetMarkets
 from pytdx.parser.ex_get_instrument_count import GetInstrumentCount
 from pytdx.parser.ex_get_instrument_quote import GetInstrumentQuote
@@ -25,39 +24,30 @@ from pytdx.parser.ex_get_history_instrument_bars_range import GetHistoryInstrume
 from pytdx.parser.ex_get_instrument_quote_list import GetInstrumentQuoteList
 
 
-def exec_command(func):
-    @wraps(func)
-    async def wrapper(self: 'ATdxExHq_API', *args, **kwargs) -> Any:
-        connection = await self.pool.get_connection()
-        try:
-            if not connection.connected:
-                await receive_all(bytearray.fromhex(
-                    "01 01 48 65 00 01 52 00 52 00 54 24 1f 32 c6 e5"
-                    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5"
-                    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5"
-                    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5"
-                    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 cc e1 6d ff"
-                    "d5 ba 3f b8 cb c5 7a 05 4f 77 48 ea"
-                ), connection)
-            data = await func(self, *args, **kwargs, connection=connection)
-            return data
-        except Exception:
-            await self.pool.discard(connection)
-            raise
-        finally:
-            self.pool.release(connection)
-
-    return wrapper
+exec_command = make_exec_command([
+    "01 01 48 65 00 01 52 00 52 00 54 24 1f 32 c6 e5"
+    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5"
+    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5"
+    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5"
+    "d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 cc e1 6d ff"
+    "d5 ba 3f b8 cb c5 7a 05 4f 77 48 ea",
+])
 
 
 class ATdxExHq_API:
     def __init__(self, ip: str = '121.14.110.210', port: int = 7727, 
-                 auto_retry: bool = False, raise_exception: bool = True):
-        self.pool = ConnectionPool(ip=ip, port=port)
-        self.auto_retry = auto_retry
+                 raise_exception: bool = False, max_connections: int = 6):
+        self.pool = ConnectionPool(ip=ip, port=port, max_connections=max_connections)
         self.raise_exception = raise_exception
         self.last_ack_time = time.time()
-        self.last_transaction_failed = False
+
+    def to_df(self, v):
+        if isinstance(v, list):
+            return pd.DataFrame(data=v)
+        elif isinstance(v, dict):
+            return pd.DataFrame(data=[v, ])
+        else:
+            return pd.DataFrame(data=[{'value': v}])
 
     @async_update_last_ack_time
     @exec_command
@@ -146,9 +136,8 @@ class ATdxExHq_API:
         return await cmd.call_api()
 
     @async_update_last_ack_time
-    @exec_command
-    async def do_heartbeat(self, connection: Optional[AsyncTrafficStatSocket] = None) -> int:
-        return await self.get_instrument_count(connection=connection)
+    async def do_heartbeat(self) -> int:
+        return await self.get_instrument_count()
 
     async def run_until_complete(self, coroutines: List[Any], **kwargs) -> List[Any]:
         """Run a list of coroutines concurrently and return their results."""
