@@ -24,6 +24,7 @@ from pytdx.parser.get_minute_time_data import GetMinuteTimeData
 from pytdx.parser.get_security_bars import GetSecurityBarsCmd
 from pytdx.parser.get_security_count import GetSecurityCountCmd
 from pytdx.parser.get_security_list import GetSecurityList
+from pytdx.parser.get_security_index_list import GetSecurityIndexList
 from pytdx.parser.get_security_quotes import GetSecurityQuotesCmd
 from pytdx.parser.get_transaction_data import GetTransactionData
 from pytdx.parser.get_xdxr_info import GetXdXrInfo
@@ -95,6 +96,14 @@ class ATdxHq_API:
     async def get_security_list(self, market: int, start: int, 
                               connection: Optional[AsyncTrafficStatSocket] = None):
         cmd = make_async_parser(GetSecurityList, connection)
+        cmd.setParams(market, start)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_security_index_list(self, market: int, start: int,
+                                connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetSecurityIndexList, connection)
         cmd.setParams(market, start)
         return await cmd.call_api()
 

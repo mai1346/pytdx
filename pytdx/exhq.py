@@ -16,6 +16,7 @@ if __name__ == '__main__':
 from pytdx.log import DEBUG, log
 from pytdx.parser.ex_setup_commands import ExSetupCmd1
 from pytdx.parser.ex_get_markets import GetMarkets
+from pytdx.parser.ex_get_full_markets import GetFullMarkets
 from pytdx.parser.ex_get_instrument_count import GetInstrumentCount
 from pytdx.parser.ex_get_instrument_quote import GetInstrumentQuote
 from pytdx.parser.ex_get_minute_time_data import GetMinuteTimeData
@@ -63,6 +64,11 @@ class TdxExHq_API(BaseSocketClient):
     @update_last_ack_time
     def get_markets(self):
         cmd = GetMarkets(self.client)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_full_markets(self):
+        cmd = GetFullMarkets(self.client)
         return cmd.call_api()
 
     @update_last_ack_time

@@ -29,6 +29,7 @@ from pytdx.parser.get_minute_time_data import GetMinuteTimeData
 from pytdx.parser.get_security_bars import GetSecurityBarsCmd
 from pytdx.parser.get_security_count import GetSecurityCountCmd
 from pytdx.parser.get_security_list import GetSecurityList
+from pytdx.parser.get_security_index_list import GetSecurityIndexList
 from pytdx.parser.get_security_quotes import GetSecurityQuotesCmd
 from pytdx.parser.get_transaction_data import GetTransactionData
 from pytdx.parser.get_xdxr_info import GetXdXrInfo
@@ -100,6 +101,12 @@ class TdxHq_API(BaseSocketClient):
     @update_last_ack_time
     def get_security_list(self, market, start):
         cmd = GetSecurityList(self.client, lock=self.lock)
+        cmd.setParams(market, start)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_security_index_list(self, market, start):
+        cmd = GetSecurityIndexList(self.client, lock=self.lock)
         cmd.setParams(market, start)
         return cmd.call_api()
 

@@ -12,6 +12,7 @@ from pytdx.async_api.async_base_socket_client import (
 )
 
 from pytdx.parser.ex_get_markets import GetMarkets
+from pytdx.parser.ex_get_full_markets import GetFullMarkets
 from pytdx.parser.ex_get_instrument_count import GetInstrumentCount
 from pytdx.parser.ex_get_instrument_quote import GetInstrumentQuote
 from pytdx.parser.ex_get_minute_time_data import GetMinuteTimeData
@@ -53,6 +54,13 @@ class ATdxExHq_API:
     @exec_command
     async def get_markets(self, connection: Optional[AsyncTrafficStatSocket] = None):
         cmd = make_async_parser(GetMarkets, connection)
+        cmd.setup()
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_full_markets(self, connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetFullMarkets, connection)
         cmd.setup()
         return await cmd.call_api()
 
