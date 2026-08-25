@@ -33,7 +33,8 @@ class AsyncTrafficStatSocket:
     实现支持流量统计的socket类
     """
 
-    def __init__(self, ip: str, port: int, pool: Optional[object] = None):
+    def __init__(self, ip: str, port: int, pool: Optional[object] = None,
+                 recv_timeout: float = 10.0):
         self.send_pkg_num: int = 0  # 发送次数
         self.recv_pkg_num: int = 0  # 接收次数
         self.send_pkg_bytes: int = 0  # 发送字节
@@ -48,6 +49,7 @@ class AsyncTrafficStatSocket:
         self.port: int = port
         self.pool: Optional[object] = pool
         self.connected: bool = False
+        self.recv_timeout: float = recv_timeout
 
     async def connect(self) -> 'AsyncTrafficStatSocket':
         self.reader, self.writer = await asyncio.open_connection(self.ip, self.port)
@@ -57,7 +59,10 @@ class AsyncTrafficStatSocket:
     async def disconnect(self) -> None:
         if self.writer:
             self.writer.close()
-            await self.writer.wait_closed()
+            try:
+                await asyncio.wait_for(self.writer.wait_closed(), timeout=5.0)
+            except asyncio.TimeoutError:
+                pass
         self.reader = None
         self.writer = None
         self.connected = False
@@ -77,7 +82,9 @@ class AsyncTrafficStatSocket:
     async def recv(self, buffersize: int, flags: Optional[int] = None) -> bytes:
         if not (self.reader and self.writer):
             await self.connect()
-        head_buf = await self.reader.read(buffersize)
+        head_buf = await asyncio.wait_for(
+            self.reader.read(buffersize), timeout=self.recv_timeout
+        )
         self.recv_pkg_num += 1
         self.recv_pkg_bytes += len(head_buf)  # Use actual received bytes
         return head_buf
@@ -100,7 +107,7 @@ def make_exec_command(setup_hex_list: List[str]):
                         await receive_all(bytearray.fromhex(setup_hex), connection)
                 data = await func(self, *args, **kwargs, connection=connection)
                 return data
-            except Exception:
+            except (Exception, asyncio.CancelledError):
                 await self.pool.discard(connection)
                 raise
             finally:
