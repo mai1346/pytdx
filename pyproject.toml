@@ -1,0 +1,4 @@
+# pyproject.toml （只需这几行，超级简单）
+[build-system]
+requires = ["setuptools>=61", "wheel", "Cython"]  # Cython 写这里，构建时自动安装
+build-backend = "setuptools.build_meta"
