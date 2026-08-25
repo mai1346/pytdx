@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=61", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pytdx"
-version = "1.73"
+dynamic = ["version"]
 description = "A Python Interface to TDX protocol"
 requires-python = ">=3.8"
 authors = [
@@ -26,3 +26,7 @@ hqbenchmark = "pytdx.bin.hqbenchmark:main"
 
 [tool.setuptools.packages.find]
 include = ["pytdx*"]
+
+[tool.setuptools_scm]
+version_scheme = "only-version"
+local_scheme = "no-local-version"
