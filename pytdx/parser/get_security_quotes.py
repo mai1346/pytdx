@@ -183,19 +183,24 @@ class GetSecurityQuotesCmd(BaseParser):
         format time from reversed_bytes0
         by using method from https://github.com/rainx/pytdx/issues/187
         """
+        if not time_stamp or len(time_stamp) < 6:
+            return ""
         time = time_stamp[:-6] + ':'
-        if int(time_stamp[-6:-4]) < 60:
-            time += '%s:' % time_stamp[-6:-4]
-            time += '%06.3f' % (
-                int(time_stamp[-4:]) * 60 / 10000.0
-            )
-        else:
-            time += '%02d:' % (
-                int(time_stamp[-6:]) * 60 / 1000000
-            )
-            time += '%06.3f' % (
-                (int(time_stamp[-6:]) * 60 % 1000000) * 60 / 1000000.0
-            )
+        try:
+            if int(time_stamp[-6:-4]) < 60:
+                time += '%s:' % time_stamp[-6:-4]
+                time += '%06.3f' % (
+                    int(time_stamp[-4:]) * 60 / 10000.0
+                )
+            else:
+                time += '%02d:' % (
+                    int(time_stamp[-6:]) * 60 / 1000000
+                )
+                time += '%06.3f' % (
+                    (int(time_stamp[-6:]) * 60 % 1000000) * 60 / 1000000.0
+                )
+        except (ValueError, IndexError):
+            return ""
         return time
 
 
