@@ -6,15 +6,10 @@ import os
 import tempfile
 import click
 import struct
-import six
 import zipfile
 import uuid
 import shutil
-
-if six.PY2:
-    from urllib import urlretrieve
-else:
-    from urllib.request import urlretrieve
+from urllib.request import urlretrieve
 
 
 
@@ -205,7 +200,7 @@ def yes_to_continue():
 
 def make_sig(acc):
 
-    if type(acc) is six.text_type:
+    if type(acc) is str:
         acc = acc.encode("utf-8")
 
     a3 = 0x55e
@@ -215,9 +210,6 @@ def make_sig(acc):
 
     result = b""
     for c in gpdm:
-
-        if six.PY2:
-            (c,) = struct.unpack("b", c)
 
         _next = True
         a = c

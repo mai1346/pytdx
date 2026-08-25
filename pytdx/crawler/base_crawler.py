@@ -1,13 +1,8 @@
 # coding: utf-8
 
 import tempfile
-import six
 import math
-
-if six.PY2:
-    from urllib2 import urlopen, Request
-else:
-    from urllib.request import urlopen, Request
+from urllib.request import urlopen, Request
 
 
 
@@ -53,13 +48,8 @@ class BaseCralwer:
         request.add_header('User-Agent', r"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36")
         res = urlopen(request)
 
-        if six.PY2:
-            resinfo = res.info()
-        else:
-            resinfo = res
-
-        if resinfo.getheader('Content-Length') is not None:
-            total_size = int(resinfo.getheader('Content-Length').strip())
+        if res.info().getheader('Content-Length') is not None:
+            total_size = int(res.info().getheader('Content-Length').strip())
             downloaded = 0
 
             while True:

@@ -1,4 +1,28 @@
-# pyproject.toml （只需这几行，超级简单）
 [build-system]
-requires = ["setuptools>=61", "wheel", "Cython"]  # Cython 写这里，构建时自动安装
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytdx-async"
+version = "1.73"
+description = "A Python Interface to TDX protocol"
+requires-python = ">=3.8"
+authors = [
+    {name = "RainX", email = "i@rainx.cc"},
+    {name = "yutiansut"},
+    {name = "mai1346"},
+]
+dependencies = [
+    "click",
+    "pandas",
+    "cryptography",
+]
+
+[project.scripts]
+hqget = "pytdx.bin.hqget:main"
+hqreader = "pytdx.bin.hqreader:main"
+get_tts = "pytdx.bin.get_tdx_trader_server:main"
+hqbenchmark = "pytdx.bin.hqbenchmark:main"
+
+[tool.setuptools.packages.find]
+include = ["pytdx*"]

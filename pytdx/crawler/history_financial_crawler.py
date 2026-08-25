@@ -6,11 +6,7 @@ import shutil
 import tempfile
 import random
 import os
-import six
 import pandas as pd
-
-if six.PY2:
-    import zipfile
 
 """
 https://github.com/rainx/pytdx/issues/133
@@ -105,11 +101,7 @@ class HistoryFinancialCrawler(BaseCralwer):
             tmpdir = os.path.join(tmpdir_root, subdir_name)
             shutil.rmtree(tmpdir, ignore_errors=True)
             os.makedirs(tmpdir)
-            if six.PY2:
-                with zipfile.ZipFile(download_file.name, 'r') as zf:
-                    zf.extractall(tmpdir)
-            else:
-                shutil.unpack_archive(download_file.name, extract_dir=tmpdir)
+            shutil.unpack_archive(download_file.name, extract_dir=tmpdir)
             # only one file endswith .dat should be in zip archives
             datfile = None
             for _file in os.listdir(tmpdir):
