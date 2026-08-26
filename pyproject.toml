@@ -28,5 +28,3 @@ hqbenchmark = "pytdx.bin.hqbenchmark:main"
 include = ["pytdx*"]
 
 [tool.setuptools_scm]
-version_scheme = "only-version"
-local_scheme = "no-local-version"
