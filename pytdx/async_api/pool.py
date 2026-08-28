@@ -29,13 +29,8 @@ class ConnectionPool:
                 self._in_use.add(conn)
                 return conn
             else:
-                try:
-                    await conn.connect()
-                    self._in_use.add(conn)
-                    return conn
-                except Exception:
-                    await conn.disconnect()
-                    self.created_connect -= 1
+                await conn.disconnect()
+                self.created_connect -= 1
 
     def make_connection(self) -> AsyncTrafficStatSocket:
         self.created_connect += 1
