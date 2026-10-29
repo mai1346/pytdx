@@ -28,6 +28,17 @@ from pytdx.parser.get_security_index_list import GetSecurityIndexList
 from pytdx.parser.get_security_quotes import GetSecurityQuotesCmd
 from pytdx.parser.get_transaction_data import GetTransactionData
 from pytdx.parser.get_xdxr_info import GetXdXrInfo
+from pytdx.parser.get_call_auction import GetCallAuctionCmd
+from pytdx.parser.get_money_flow import GetMoneyFlowCmd
+from pytdx.parser.get_delisted_bars import GetDelistedBarsCmd
+from pytdx.parser.get_category_quotes import GetCategoryQuotesCmd
+from pytdx.parser.get_snapshots import GetSnapshotsCmd
+from pytdx.parser.get_special_limits import GetSpecialLimitsCmd
+from pytdx.parser.get_history_ticks import GetHistoryTicksCmd
+from pytdx.parser.get_security_list_ex import GetSecurityListExCmd
+from pytdx.parser.get_intraday_aux import GetIntradayAuxCmd
+from pytdx.parser.get_sparkline import GetSparklineCmd
+from pytdx.parser.get_recent_intraday import GetRecentIntradayCmd
 
 
 exec_command = make_exec_command([
@@ -58,17 +69,19 @@ class ATdxHq_API:
     @async_update_last_ack_time
     @exec_command
     async def get_security_bars(self, category: int, market: int, code: str, 
-                              start: int, count: int, connection: Optional[AsyncTrafficStatSocket] = None):
+                              start: int, count: int, adjust: int = 0, anchor_date: int = 0,
+                              connection: Optional[AsyncTrafficStatSocket] = None):
         cmd = make_async_parser(GetSecurityBarsCmd, connection)
-        cmd.setParams(category, market, code, start, count)
+        cmd.setParams(category, market, code, start, count, adjust, anchor_date)
         return await cmd.call_api()
 
     @async_update_last_ack_time
     @exec_command
     async def get_index_bars(self, category: int, market: int, code: str, 
-                           start: int, count: int, connection: Optional[AsyncTrafficStatSocket] = None):
+                           start: int, count: int, adjust: int = 0, anchor_date: int = 0,
+                           connection: Optional[AsyncTrafficStatSocket] = None):
         cmd = make_async_parser(GetIndexBarsCmd, connection)
-        cmd.setParams(category, market, code, start, count)
+        cmd.setParams(category, market, code, start, count, adjust, anchor_date)
         return await cmd.call_api()
 
     @async_update_last_ack_time
@@ -161,6 +174,100 @@ class ATdxHq_API:
                           connection: Optional[AsyncTrafficStatSocket] = None):
         cmd = make_async_parser(GetXdXrInfo, connection)
         cmd.setParams(market, code)
+        return await cmd.call_api()
+
+    # ---- 扩展命令 (参考 eltdx 协议实现) ----
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_call_auction(self, market: int, code: str, date: int = 0,
+                               selector: int = 3, start: int = 0, limit: int = 500,
+                               connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetCallAuctionCmd, connection)
+        cmd.setParams(market, code, date, selector, start, limit)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_money_flow(self, market: int, code: str,
+                             connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetMoneyFlowCmd, connection)
+        cmd.setParams(market, code)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_delisted_bars(self, market: int, code: str, start: int = 0, count: int = 20,
+                                connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetDelistedBarsCmd, connection)
+        cmd.setParams(market, code, start, count)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_category_quotes(self, category, start: int = 0, count: int = 80,
+                                  sort_type=0, ascending: bool = False,
+                                  sort_reverse=None, filter_raw: int = 0,
+                                  connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetCategoryQuotesCmd, connection)
+        cmd.setParams(category, start, count, sort_type, ascending, sort_reverse, filter_raw)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_snapshots(self, all_stock,
+                            connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetSnapshotsCmd, connection)
+        cmd.setParams(all_stock)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_special_limits(self, start: int = 0,
+                                 connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetSpecialLimitsCmd, connection)
+        cmd.setParams(start)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_history_ticks(self, market: int, code: str, date: int,
+                                start: int = 0, count: int = 900,
+                                connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetHistoryTicksCmd, connection)
+        cmd.setParams(market, code, date, start, count)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_security_list_ex(self, market: int, start: int = 0, limit: int = 1600,
+                                   connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetSecurityListExCmd, connection)
+        cmd.setParams(market, start, limit)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_intraday_aux(self, market: int, code: str, kind: int = 0,
+                               connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetIntradayAuxCmd, connection)
+        cmd.setParams(market, code, kind)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_sparkline(self, market: int, code: str, selector: int = 1, window: int = 20,
+                            connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetSparklineCmd, connection)
+        cmd.setParams(market, code, selector, window)
+        return await cmd.call_api()
+
+    @async_update_last_ack_time
+    @exec_command
+    async def get_recent_intraday(self, market: int, code: str, date,
+                                  connection: Optional[AsyncTrafficStatSocket] = None):
+        cmd = make_async_parser(GetRecentIntradayCmd, connection)
+        cmd.setParams(market, code, date)
         return await cmd.call_api()
 
     @async_update_last_ack_time

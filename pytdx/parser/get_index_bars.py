@@ -26,28 +26,36 @@ bytearray(b'\xa8\xa9\xa4I\x10R\rR') = 1348917 151741792256.00000
 
 class GetIndexBarsCmd(BaseParser):
 
-    def setParams(self, category, market, code, start, count):
+    def setParams(self, category, market, code, start, count, adjust=0, anchor_date=0):
+        """
+        :param adjust: 复权模式 0=不复权 1=前复权 2=后复权 3=固定前复权 4=固定后复权
+        :param anchor_date: 复权锚点日期 YYYYMMDD, 0 表示以最新交易日为锚 (仅 adjust>=3 时生效)
+        """
         if type(code) is str:
             code = code.encode("utf-8")
 
         self.category = category
 
+        # 42 字节新协议布局 (eltdx 2026):
+        # market(2) + code(6) + period.raw(2) + period.parameter(2)
+        # + start(2) + count(2) + adjust(2) + anchor_date(4) + 20字节0
         values = (
-            0x10c,
-            0x01016408,
-            0x1c,
-            0x1c,
-            0x052d,
-            market,
-            code,
-            category,
-            1,
-            start,
-            count,
-            0, 0, 0  # I + I +  H total 10 zero
+            0x10c,         # H magic1
+            0x01016408,    # I magic2
+            0x2a,          # H pkgdatalen = 42
+            0x2a,          # H pkgdatalen = 42
+            0x052d,        # H type
+            market,        # H market
+            code,          # 6s code
+            category,      # H period.raw
+            1,             # H period.parameter
+            start,         # H start
+            count,         # H count
+            adjust,        # H adjust (新增)
+            anchor_date,   # I anchor_date (新增)
         )
 
-        pkg = struct.pack("<HIHHHH6sHHHHIIH", *values)
+        pkg = struct.pack("<HIHHHH6sHHHHHI", *values) + b'\x00' * 20
         self.send_pkg = pkg
 
     def parseResponse(self, body_buf):

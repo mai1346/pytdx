@@ -34,6 +34,17 @@ from pytdx.parser.get_security_quotes import GetSecurityQuotesCmd
 from pytdx.parser.get_transaction_data import GetTransactionData
 from pytdx.parser.get_xdxr_info import GetXdXrInfo
 from pytdx.parser.get_report_file import GetReportFile
+from pytdx.parser.get_call_auction import GetCallAuctionCmd
+from pytdx.parser.get_money_flow import GetMoneyFlowCmd
+from pytdx.parser.get_delisted_bars import GetDelistedBarsCmd
+from pytdx.parser.get_category_quotes import GetCategoryQuotesCmd
+from pytdx.parser.get_snapshots import GetSnapshotsCmd
+from pytdx.parser.get_special_limits import GetSpecialLimitsCmd
+from pytdx.parser.get_history_ticks import GetHistoryTicksCmd
+from pytdx.parser.get_security_list_ex import GetSecurityListExCmd
+from pytdx.parser.get_intraday_aux import GetIntradayAuxCmd
+from pytdx.parser.get_sparkline import GetSparklineCmd
+from pytdx.parser.get_recent_intraday import GetRecentIntradayCmd
 from pytdx.parser.setup_commands import SetupCmd1, SetupCmd2, SetupCmd3
 from pytdx.util import get_real_trade_date, trade_date_sse
 try:
@@ -59,15 +70,15 @@ class TdxHq_API(BaseSocketClient):
 
     # Notice：，如果一个股票当天停牌，那天的K线还是能取到，成交量为0
     @update_last_ack_time
-    def get_security_bars(self, category, market, code, start, count):
+    def get_security_bars(self, category, market, code, start, count, adjust=0, anchor_date=0):
         cmd = GetSecurityBarsCmd(self.client, lock=self.lock)
-        cmd.setParams(category, market, code, start, count)
+        cmd.setParams(category, market, code, start, count, adjust, anchor_date)
         return cmd.call_api()
 
     @update_last_ack_time
-    def get_index_bars(self, category, market, code, start, count):
+    def get_index_bars(self, category, market, code, start, count, adjust=0, anchor_date=0):
         cmd = GetIndexBarsCmd(self.client, lock=self.lock)
-        cmd.setParams(category, market, code, start, count)
+        cmd.setParams(category, market, code, start, count, adjust, anchor_date)
         return cmd.call_api()
 
     @update_last_ack_time
@@ -156,6 +167,86 @@ class TdxHq_API(BaseSocketClient):
     def get_finance_info(self, market, code):
         cmd = GetFinanceInfo(self.client, lock=self.lock)
         cmd.setParams(market, code)
+        return cmd.call_api()
+
+    # ---- 扩展命令 (参考 eltdx 协议实现) ----
+
+    @update_last_ack_time
+    def get_call_auction(self, market, code, date=0, selector=3, start=0, limit=500):
+        """集合竞价过程快照, date=0 当日, date=YYYYMMDD 历史"""
+        cmd = GetCallAuctionCmd(self.client, lock=self.lock)
+        cmd.setParams(market, code, date, selector, start, limit)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_money_flow(self, market, code):
+        """个股资金流向日数据(主力/超大单/大单/中单/小单净额)"""
+        cmd = GetMoneyFlowCmd(self.client, lock=self.lock)
+        cmd.setParams(market, code)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_delisted_bars(self, market, code, start=0, count=20):
+        """退市股票不复权日线"""
+        cmd = GetDelistedBarsCmd(self.client, lock=self.lock)
+        cmd.setParams(market, code, start, count)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_category_quotes(self, category, start=0, count=80, sort_type=0,
+                            ascending=False, sort_reverse=None, filter_raw=0):
+        """按市场/板块分页返回行情列表(可服务端排序), category 可传 '沪深a股' 或数字"""
+        cmd = GetCategoryQuotesCmd(self.client, lock=self.lock)
+        cmd.setParams(category, start, count, sort_type, ascending, sort_reverse, filter_raw)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_snapshots(self, all_stock):
+        """批量行情快照(轻量, 仅买一/卖一), 参数同 get_security_quotes"""
+        cmd = GetSnapshotsCmd(self.client, lock=self.lock)
+        cmd.setParams(all_stock)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_special_limits(self, start=0):
+        """特殊品种涨跌停限制表"""
+        cmd = GetSpecialLimitsCmd(self.client, lock=self.lock)
+        cmd.setParams(start)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_history_ticks(self, market, code, date, start=0, count=900):
+        """历史成交明细增强分页(0x0fc6), 比 get_history_transaction_data 字段更丰富"""
+        cmd = GetHistoryTicksCmd(self.client, lock=self.lock)
+        cmd.setParams(market, code, date, start, count)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_security_list_ex(self, market, start=0, limit=1600):
+        """代码表分页(0x044d, 含名称/精度/昨收), 比 get_security_list 字段更丰富"""
+        cmd = GetSecurityListExCmd(self.client, lock=self.lock)
+        cmd.setParams(market, start, limit)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_intraday_aux(self, market, code, kind=0):
+        """分时副图(0x051b), kind=0 买卖力道, kind=11 成交对比"""
+        cmd = GetIntradayAuxCmd(self.client, lock=self.lock)
+        cmd.setParams(market, code, kind)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_sparkline(self, market, code, selector=1, window=20):
+        """小走势图(0x0fd1), 单标的小型价格走势序列"""
+        cmd = GetSparklineCmd(self.client, lock=self.lock)
+        cmd.setParams(market, code, selector, window)
+        return cmd.call_api()
+
+    @update_last_ack_time
+    def get_recent_intraday(self, market, code, date):
+        """近期历史分时(0x0feb), date 为 YYYYMMDD 整数或 (year,month,day)"""
+        cmd = GetRecentIntradayCmd(self.client, lock=self.lock)
+        cmd.setParams(market, code, date)
         return cmd.call_api()
 
     @update_last_ack_time
